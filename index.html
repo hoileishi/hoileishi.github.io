@@ -4,9 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Карточки иероглифов</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#D4A853">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="汉字">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+/* Добавь/замени эти стили */
+input, select {
+  width: 100%; /* Чтобы инпуты всегда занимали всю ширину контейнера */
+  max-width: 100%;
+  box-sizing: border-box; /* Чтобы padding не раздувал ширину */
+  margin-bottom: 10px;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column; /* На телефоне поля будут друг под другом */
+  gap: 8px;
+  padding: 0 16px;
+}
 
 :root{
   --bg-deep:#0D0B0E;
@@ -655,6 +686,35 @@ details[open] summary{color:var(--text-secondary)}
   .card-row{grid-template-columns:48px 1fr auto}
   .card-row>div:nth-child(3){display:none}
   .app{padding:1rem .75rem 3rem}
+}
+
+@media (max-width: 600px) {
+  .tabs {
+    flex-wrap: wrap; /* Кнопки вкладок будут переноситься, а не уходить за экран */
+    justify-content: center;
+  }
+  
+  .tab {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .app {
+    padding: 10px; /* Уменьшаем отступы по бокам */
+  }
+
+  /* Если у тебя кнопки в ряд, на телефоне ставим их в колонку */
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  /* Сетка карточек: вместо 4-5 в ряд делаем 2 */
+  .browse-grid {
+    grid-template-columns: 1fr 1fr !important; 
+    gap: 10px;
+  }
 }
 </style>
 
