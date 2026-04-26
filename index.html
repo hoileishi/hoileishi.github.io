@@ -1584,14 +1584,13 @@ function renderHistory() {
 // ─── Export/Import JSON ───────────────────────────────────────────────────────
 // Функция для сохранения (Экспорт)
 function exportToJson() {
-  // Получаем все данные из таблицы через твой объект db
-  const res = db.exec("SELECT char, pinyin, translation FROM cards");
-  
+  const res = db.exec("SELECT char, pinyin, trans FROM cards")
+
   if (res.length === 0) return alert("Список пуст");
 
-  // Превращаем результат SQL в массив объектов
   const columns = res[0].columns;
   const values = res[0].values;
+
   const data = values.map(row => {
     let obj = {};
     columns.forEach((col, i) => obj[col] = row[i]);
@@ -1601,7 +1600,7 @@ function exportToJson() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "kanji_export.json";
+  link.download = "hanzi_export.json";
   link.click();
 }
 
