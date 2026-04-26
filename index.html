@@ -1612,26 +1612,25 @@ function importFromJson(event) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      
-      // Проходим по каждой записи и вставляем в SQL таблицу
+
       data.forEach(item => {
-        // Используем esc() для защиты от кавычек (функция esc уже есть в твоем коде)
-        db.run(`INSERT INTO cards (char, pinyin, translation) 
-                VALUES ('${esc(item.char)}', '${esc(item.pinyin)}', '${esc(item.translation)}')`);
+        db.run(
+          `INSERT INTO cards (char, pinyin, trans) VALUES (?, ?, ?)`,
+          [item.char, item.pinyin, item.trans]
+        );
       });
 
-      // Сохраняем изменения в IndexedDB/LocalStorage и обновляем интерфейс
-      saveDB();      // Твоя функция сохранения состояния БД
-      renderBrowse(); // Твоя функция обновления списка
-      updateStats();  // Твоя функция обновления статистики
-      
+      saveDB();
+      renderBrowse();
+      updateStats();
+
       alert("Данные успешно импортированы!");
     } catch (err) {
       alert("Ошибка при чтении файла: " + err.message);
     }
   };
-  reader.readAsText(file);
 }
+
 // ─── SQL Console ──────────────────────────────────────────────────────────────
 function setSQL(q) { document.getElementById('sql-input').value=q; }
 function runSQL() {
