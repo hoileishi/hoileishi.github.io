@@ -840,6 +840,15 @@ details[open] summary{color:var(--text-secondary)}
 <div id="tab-history" class="section">
   <div id="history-content"></div>
 </div>
+<!-- ═══════════════ Export/Import ═══════════════ -->
+ <div class="actions" style="margin-top: 10px; display: flex; gap: 10px;">
+  <button class="btn btn-sm" onclick="exportToJson()">Экспорт (JSON)</button>
+  
+  <label class="btn btn-sm" style="cursor:pointer">
+    Импорт (JSON)
+    <input type="file" accept=".json" onchange="importFromJson(event)" style="display:none">
+  </label>
+</div>
 
 </div><!-- .app -->
 
@@ -1572,7 +1581,58 @@ function renderHistory() {
     </details>`;
   document.getElementById('history-content').innerHTML = html;
 }
+// ─── Export/Import JSON ───────────────────────────────────────────────────────
+// Функция для сохранения (Экспорт)
+function exportToJson() {
+  // Получаем все данные из таблицы через твой объект db
+  const res = db.exec("SELECT char, pinyin, translation FROM cards");
+  
+  if (res.length === 0) return alert("Список пуст");
 
+  // Превращаем результат SQL в массив объектов
+  const columns = res[0].columns;
+  const values = res[0].values;
+  const data = values.map(row => {
+    let obj = {};
+    columns.forEach((col, i) => obj[col] = row[i]);
+    return obj;
+  });
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "kanji_export.json";
+  link.click();
+}
+
+function importFromJson(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      
+      // Проходим по каждой записи и вставляем в SQL таблицу
+      data.forEach(item => {
+        // Используем esc() для защиты от кавычек (функция esc уже есть в твоем коде)
+        db.run(`INSERT INTO cards (char, pinyin, translation) 
+                VALUES ('${esc(item.char)}', '${esc(item.pinyin)}', '${esc(item.translation)}')`);
+      });
+
+      // Сохраняем изменения в IndexedDB/LocalStorage и обновляем интерфейс
+      saveDB();      // Твоя функция сохранения состояния БД
+      renderBrowse(); // Твоя функция обновления списка
+      updateStats();  // Твоя функция обновления статистики
+      
+      alert("Данные успешно импортированы!");
+    } catch (err) {
+      alert("Ошибка при чтении файла: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
 // ─── SQL Console ──────────────────────────────────────────────────────────────
 function setSQL(q) { document.getElementById('sql-input').value=q; }
 function runSQL() {
