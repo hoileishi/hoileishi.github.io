@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Карточки иероглифов</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg-deep:#0D0B0E;
+  --bg-panel:rgba(18,16,22,0.55);
+  --bg-panel-hover:rgba(24,22,30,0.65);
+  --border-glass:rgba(255,255,255,0.06);
+  --border-glass-hover:rgba(255,255,255,0.10);
+  --text-primary:#F5F0E6;
+  --text-secondary:#B8A99A;
+  --text-muted:#7A6E63;
+  --amber:#D4A853;
+  --amber-soft:rgba(212,168,83,0.15);
+  --amber-glow:0 0 20px rgba(212,168,83,0.25),0 0 60px rgba(212,168,83,0.08);
+  --sage:#7A9E7A;
+  --sage-soft:rgba(122,158,122,0.15);
+  --sage-glow:0 0 20px rgba(122,158,122,0.20);
+  --terracotta:#B87A6A;
+  --terracotta-soft:rgba(184,122,106,0.15);
+  --plum:#6A4E6A;
+  --plum-soft:rgba(106,78,106,0.20);
+  --radius-sm:14px;
+  --radius-md:20px;
+  --radius-lg:28px;
+  --shadow-soft:0 8px 32px rgba(0,0,0,0.35);
+  --font-ui:'Inter',system-ui,sans-serif;
+  --font-han:'Noto Serif SC','Georgia',serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{
+  font-family:var(--font-ui);
+  background:var(--bg-deep);
+  color:var(--text-primary);
+  line-height:1.6;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ═══ Дышащий фон ═══ */
+body::before,body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  pointer-events:none;
+}
+body::before{
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 40%,rgba(106,78,106,0.35) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 20%,rgba(184,122,106,0.20) 0%,transparent 55%),
+    radial-gradient(ellipse 70% 50% at 50% 90%,rgba(212,168,83,0.12) 0%,transparent 50%);
+  animation:breathe 20s ease-in-out infinite alternate;
+}
+body::after{
+  background:
+    radial-gradient(ellipse 50% 50% at 60% 60%,rgba(106,78,106,0.15) 0%,transparent 50%),
+    radial-gradient(ellipse 40% 60% at 30% 80%,rgba(212,168,83,0.08) 0%,transparent 45%);
+  animation:breathe2 25s ease-in-out infinite alternate;
+}
+@keyframes breathe{
+  0%{transform:scale(1) translate(0,0);opacity:0.8}
+  50%{transform:scale(1.08) translate(-2%,1%);opacity:1}
+  100%{transform:scale(1.05) translate(1%,-1%);opacity:0.9}
+}
+@keyframes breathe2{
+  0%{transform:scale(1.1) translate(0,0);opacity:0.6}
+  50%{transform:scale(1) translate(2%,-2%);opacity:0.9}
+  100%{transform:scale(1.15) translate(-1%,1%);opacity:0.7}
+}
+
+.app{
+  max-width:720px;
+  margin:0 auto;
+  padding:2rem 1rem 4rem;
+  min-height:520px;
+  position:relative;
+  z-index:1;
+}
+
+/* ═══ Loading ═══ */
+#app-loading{text-align:center;padding:6rem 1rem;color:var(--text-secondary)}
+#app-loading .spin{
+  width:36px;height:36px;
+  border:3px solid rgba(255,255,255,0.08);
+  border-top-color:var(--amber);
+  border-radius:50%;
+  animation:spin 1.2s linear infinite;
+  margin:0 auto 18px;
+  box-shadow:0 0 20px rgba(212,168,83,0.15);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ Glass panel base ═══ */
+.glass{
+  background:var(--bg-panel);
+  backdrop-filter:blur(16px) saturate(1.2);
+  -webkit-backdrop-filter:blur(16px) saturate(1.2);
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-md);
+  box-shadow:var(--shadow-soft);
+  transition:all .35s cubic-bezier(.4,0,.2,1);
+}
+.glass:hover{
+  background:var(--bg-panel-hover);
+  border-color:var(--border-glass-hover);
+}
+
+/* ═══ Header ═══ */
+.app-header{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  margin-bottom:2rem;
+  padding:20px 24px;
+}
+.app-header .logo-char{
+  font-family:var(--font-han);
+  font-size:38px;
+  width:64px;height:64px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(212,168,83,0.08);
+  border-radius:var(--radius-md);
+  border:1px solid rgba(212,168,83,0.12);
+  color:var(--amber);
+  box-shadow:0 0 30px rgba(212,168,83,0.08);
+  transition:all .4s;
+}
+.app-header .logo-char:hover{
+  box-shadow:var(--amber-glow);
+  transform:translateY(-2px);
+}
+.app-header .title-block{display:flex;flex-direction:column;gap:3px}
+.app-header h1{font-size:19px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px}
+.app-header .subtitle{font-size:13px;color:var(--text-secondary);font-weight:300}
+.header-badges{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;padding:5px 14px;
+  border-radius:100px;font-weight:500;letter-spacing:0.3px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border-glass);
+  color:var(--text-secondary);
+  backdrop-filter:blur(8px);
+}
+.badge-sql{color:var(--sage);border-color:rgba(122,158,122,0.15);background:var(--sage-soft)}
+.badge-streak{color:var(--amber);border-color:rgba(212,168,83,0.15);background:var(--amber-soft)}
+
+/* ═══ Stats ═══ */
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.75rem}
+.stat{
+  composes:glass;
+  padding:18px 12px;text-align:center;
+}
+.stat-val{
+  font-size:26px;font-weight:700;
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  letter-spacing:-1px;
+  text-shadow:0 2px 12px rgba(0,0,0,0.4);
+}
+.stat-val.amber{color:var(--amber);text-shadow:0 0 20px rgba(212,168,83,0.3)}
+.stat-val.sage{color:var(--sage);text-shadow:0 0 20px rgba(122,158,122,0.25)}
+.stat-lbl{font-size:10px;color:var(--text-muted);margin-top:6px;text-transform:uppercase;letter-spacing:0.8px;font-weight:500}
+
+/* ═══ Mode bar ═══ */
+.mode-bar{
+  display:flex;gap:10px;align-items:center;
+  margin-bottom:1.75rem;flex-wrap:wrap;
+  padding:6px;
+  background:rgba(255,255,255,0.03);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border-glass);
+  backdrop-filter:blur(12px);
+}
+.mode-lbl{font-size:12px;color:var(--text-muted);white-space:nowrap;font-weight:500;margin-left:10px}
+.mode-btn{
+  padding:7px 18px;border-radius:100px;
+  border:1px solid transparent;background:transparent;
+  font-size:12px;cursor:pointer;font-family:inherit;
+  color:var(--text-secondary);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  font-weight:500;
+}
+.mode-btn:hover{color:var(--text-primary);background:rgba(255,255,255,0.04)}
+.mode-btn.active{
+  background:rgba(212,168,83,0.12);
+  color:var(--amber);
+  border-color:rgba(212,168,83,0.2);
+  box-shadow:var(--amber-glow);
+}
+
+/* ═══ Tabs ═══ */
+.tabs{
+  display:flex;gap:4px;
+  margin-bottom:1.75rem;flex-wrap:wrap;
+  padding:5px;
+  background:rgba(255,255,255,0.03);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border-glass);
+  backdrop-filter:blur(12px);
+}
+.tab{
+  background:none;border:none;
+  padding:9px 18px;font-size:13px;
+  color:var(--text-muted);cursor:pointer;
+  border-radius:100px;font-family:inherit;
+  font-weight:500;
+  transition:all .3s;
+  position:relative;
+}
+.tab:hover:not(.active){color:var(--text-secondary);background:rgba(255,255,255,0.03)}
+.tab.active{
+  color:var(--text-primary);
+  background:rgba(255,255,255,0.06);
+  box-shadow:0 2px 16px rgba(0,0,0,0.2);
+}
+
+.section{display:none}
+.section.active{display:block;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══ Buttons ═══ */
+.btn{
+  padding:10px 20px;border-radius:var(--radius-sm);
+  border:1px solid var(--border-glass);
+  background:rgba(255,255,255,0.04);
+  font-size:13px;cursor:pointer;font-family:inherit;
+  color:var(--text-primary);
+  transition:all .25s cubic-bezier(.4,0,.2,1);
+  font-weight:500;
+  backdrop-filter:blur(8px);
+}
+.btn:hover{
+  background:rgba(255,255,255,0.08);
+  border-color:var(--border-glass-hover);
+  transform:translateY(-1px);
+  box-shadow:0 4px 20px rgba(0,0,0,0.25);
+}
+.btn:active{transform:scale(.97)}
+.btn-red{
+  background:rgba(212,168,83,0.12);
+  color:var(--amber);
+  border-color:rgba(212,168,83,0.25);
+  box-shadow:var(--amber-glow);
+}
+.btn-red:hover{
+  background:rgba(212,168,83,0.20);
+  box-shadow:0 0 30px rgba(212,168,83,0.35),0 0 80px rgba(212,168,83,0.1);
+  transform:translateY(-2px);
+}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-wrong{
+  border-color:rgba(184,122,106,0.25);
+  color:#C49A8A;
+  background:var(--terracotta-soft);
+}
+.btn-wrong:hover{
+  background:rgba(184,122,106,0.20);
+  box-shadow:0 0 20px rgba(184,122,106,0.15);
+}
+.btn-right{
+  border-color:rgba(122,158,122,0.25);
+  color:var(--sage);
+  background:var(--sage-soft);
+}
+.btn-right:hover{
+  background:rgba(122,158,122,0.20);
+  box-shadow:var(--sage-glow);
+}
+
+/* ═══ Form ═══ */
+.form-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:1.25rem;align-items:end}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.8px}
+input,textarea{
+  padding:12px 16px;
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-sm);
+  font-family:inherit;font-size:14px;
+  background:rgba(255,255,255,0.03);
+  color:var(--text-primary);
+  outline:none;
+  transition:all .25s;
+  backdrop-filter:blur(8px);
+}
+input:focus,textarea:focus{
+  border-color:rgba(212,168,83,0.3);
+  background:rgba(255,255,255,0.06);
+  box-shadow:0 0 0 3px rgba(212,168,83,0.08),var(--amber-glow);
+}
+input::placeholder,textarea::placeholder{color:var(--text-muted);opacity:0.6}
+.char-input{
+  font-family:var(--font-han);
+  font-size:28px;text-align:center;
+  font-weight:500;letter-spacing:4px;
+}
+
+/* ═══ Browse ═══ */
+.card-grid{display:grid;gap:8px}
+.card-row{
+  display:grid;grid-template-columns:56px 1fr 1fr auto;
+  gap:14px;align-items:center;
+  padding:14px 18px;
+  composes:glass;
+}
+.card-row:hover{
+  border-color:var(--border-glass-hover);
+  transform:translateY(-2px);
+  box-shadow:0 12px 40px rgba(0,0,0,0.3);
+}
+.card-char{
+  font-family:var(--font-han);
+  font-size:30px;text-align:center;
+  color:var(--amber);
+  font-weight:500;
+  text-shadow:0 0 20px rgba(212,168,83,0.2);
+}
+.card-info{display:flex;flex-direction:column;gap:3px}
+.card-pinyin{font-size:12px;color:var(--text-muted);font-style:italic}
+.search-row{display:flex;gap:10px;margin-bottom:1.25rem}
+.search-row input{flex:1}
+.empty{
+  text-align:center;padding:4rem 1rem;
+  color:var(--text-muted);font-size:14px;
+  composes:glass;
+  border-style:dashed;
+}
+
+/* ═══ Flashcard ═══ */
+.flashcard-wrap{display:flex;flex-direction:column;align-items:center;gap:1.75rem;padding:1.5rem 0}
+.progress-bar{
+  width:100%;max-width:360px;height:4px;
+  background:rgba(255,255,255,0.06);
+  border-radius:100px;overflow:hidden;
+}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--amber),var(--terracotta));
+  border-radius:100px;
+  transition:width .5s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 12px rgba(212,168,83,0.3);
+}
+.flashcard{
+  width:360px;height:240px;
+  perspective:900px;cursor:pointer;
+}
+.flashcard-inner{
+  width:100%;height:100%;position:relative;
+  transform-style:preserve-3d;
+  transition:transform .7s cubic-bezier(.4,0,.2,1);
+}
+.flashcard.flipped .flashcard-inner{transform:rotateY(180deg)}
+.fc-face{
+  position:absolute;inset:0;
+  backface-visibility:hidden;
+  composes:glass;
+  border-radius:var(--radius-lg);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:12px;padding:2rem;
+}
+.fc-back{transform:rotateY(180deg)}
+.fc-btns{display:flex;gap:10px}
+.fc-mode-tag{
+  position:absolute;top:16px;right:18px;
+  font-size:10px;color:var(--text-muted);
+  background:rgba(255,255,255,0.04);
+  padding:4px 12px;border-radius:100px;
+  font-weight:500;letter-spacing:0.5px;
+  border:1px solid var(--border-glass);
+}
+
+/* ═══ Games ═══ */
+.game-lobby{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.game-card{
+  composes:glass;
+  padding:1.75rem 1.5rem;
+  cursor:pointer;
+  display:flex;flex-direction:column;gap:10px;
+}
+.game-card:hover{
+  border-color:rgba(212,168,83,0.15);
+  transform:translateY(-4px);
+  box-shadow:0 16px 48px rgba(0,0,0,0.35),var(--amber-glow);
+}
+.game-icon{font-size:32px;line-height:1;margin-bottom:2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
+.game-title{font-size:15px;font-weight:600;color:var(--text-primary)}
+.game-desc{font-size:12px;color:var(--text-secondary);line-height:1.6;font-weight:300}
+.game-badge{
+  font-size:10px;padding:4px 12px;border-radius:100px;
+  background:var(--amber-soft);
+  color:var(--amber);width:fit-content;
+  font-weight:600;letter-spacing:0.5px;
+  border:1px solid rgba(212,168,83,0.12);
+}
+
+/* ═══ Timer ═══ */
+.timer-ring{position:relative;display:flex;align-items:center;justify-content:center}
+.timer-ring svg{transform:rotate(-90deg)}
+.timer-val{
+  position:absolute;
+  font-size:22px;font-weight:700;
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  text-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* ═══ Speed / Survival ═══ */
+.speed-arena{display:flex;flex-direction:column;align-items:center;gap:1.75rem;padding:1.5rem 0}
+.speed-char{
+  font-family:var(--font-han);
+  font-size:84px;line-height:1;text-align:center;
+  color:var(--amber);
+  font-weight:500;
+  text-shadow:0 0 40px rgba(212,168,83,0.25),0 4px 16px rgba(0,0,0,0.3);
+}
+.speed-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:360px}
+.speed-opt{
+  padding:16px 14px;
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.03);
+  font-size:14px;cursor:pointer;font-family:inherit;
+  color:var(--text-primary);
+  transition:all .2s;font-weight:500;
+  backdrop-filter:blur(8px);
+}
+.speed-opt:hover:not(:disabled){
+  background:rgba(255,255,255,0.06);
+  border-color:var(--border-glass-hover);
+  transform:translateY(-1px);
+}
+.speed-opt.correct{
+  background:var(--sage-soft);
+  border-color:rgba(122,158,122,0.3);
+  color:var(--sage);
+  font-weight:600;
+  box-shadow:var(--sage-glow);
+}
+.speed-opt.wrong{
+  background:var(--terracotta-soft);
+  border-color:rgba(184,122,106,0.3);
+  color:#C49A8A;
+  box-shadow:0 0 20px rgba(184,122,106,0.1);
+}
+.speed-opt:disabled{cursor:default}
+.combo-badge{
+  font-size:15px;font-weight:700;
+  color:var(--amber);
+  min-height:22px;
+  transition:transform .15s;
+  font-family:var(--font-ui);
+  text-shadow:0 0 12px rgba(212,168,83,0.3);
+}
+.combo-pop{transform:scale(1.45)}
+
+/* ═══ Typing ═══ */
+.typing-area{display:flex;flex-direction:column;align-items:center;gap:1.25rem;width:100%;padding:1.5rem 0}
+.typing-char{
+  font-family:var(--font-han);
+  font-size:84px;line-height:1;
+  color:var(--amber);
+  text-shadow:0 0 40px rgba(212,168,83,0.25),0 4px 16px rgba(0,0,0,0.3);
+}
+.typing-hint{
+  font-size:18px;color:var(--terracotta);
+  font-style:italic;
+  text-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.typing-input{
+  text-align:center;font-size:18px;width:340px;
+  padding:14px 18px;
+}
+.typing-input.ok{
+  border-color:var(--sage)!important;
+  background:var(--sage-soft)!important;
+  box-shadow:var(--sage-glow)!important;
+}
+.typing-input.err{
+  border-color:var(--terracotta)!important;
+  background:var(--terracotta-soft)!important;
+  box-shadow:0 0 20px rgba(184,122,106,0.15)!important;
+}
+
+/* ═══ Matching ═══ */
+.match-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;width:100%;max-width:480px;margin:0 auto}
+.match-col{display:flex;flex-direction:column;gap:10px}
+.match-item{
+  padding:14px 20px;
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-sm);
+  text-align:center;cursor:pointer;
+  font-size:14px;transition:all .2s;
+  user-select:none;min-height:52px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.03);
+  font-weight:500;
+  backdrop-filter:blur(8px);
+}
+.match-item:hover{
+  background:rgba(255,255,255,0.06);
+  border-color:var(--border-glass-hover);
+  transform:translateY(-1px);
+}
+.match-item.selected{
+  border-color:rgba(212,168,83,0.3);
+  background:var(--amber-soft);
+  color:var(--amber);
+  box-shadow:var(--amber-glow);
+}
+.match-item.matched{
+  border-color:rgba(122,158,122,0.3);
+  background:var(--sage-soft);
+  color:var(--sage);
+  cursor:default;opacity:0.5;
+  box-shadow:none;
+}
+.match-item.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+/* ═══ Results ═══ */
+.result-panel{
+  composes:glass;
+  padding:3rem 2rem;
+  text-align:center;
+  display:flex;flex-direction:column;
+  align-items:center;gap:1.25rem;
+  max-width:420px;margin:1.5rem auto;
+}
+.result-big{
+  font-size:56px;font-weight:700;
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  letter-spacing:-2px;
+  text-shadow:0 2px 16px rgba(0,0,0,0.4);
+}
+.result-sub{font-size:14px;color:var(--text-secondary);font-weight:300}
+
+/* ═══ History ═══ */
+.session-table{
+  width:100%;border-collapse:separate;border-spacing:0;
+  font-size:12px;
+  composes:glass;
+  overflow:hidden;
+}
+.session-table th{
+  text-align:left;padding:12px 16px;
+  border-bottom:1px solid var(--border-glass);
+  color:var(--text-muted);
+  font-weight:600;font-size:10px;
+  text-transform:uppercase;letter-spacing:0.8px;
+  background:rgba(255,255,255,0.02);
+}
+.session-table td{
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.session-table tr:last-child td{border-bottom:none}
+.acc-bar{
+  display:inline-block;height:4px;
+  background:var(--sage);
+  border-radius:100px;
+  vertical-align:middle;margin-right:6px;
+  box-shadow:0 0 8px rgba(122,158,122,0.3);
+}
+
+/* ═══ SQL block ═══ */
+.sql-block{
+  composes:glass;
+  padding:18px;margin-top:14px;
+}
+.sql-block pre{
+  font-size:11px;
+  font-family:'Consolas','Courier New',monospace;
+  white-space:pre-wrap;word-break:break-all;
+  color:var(--text-secondary);line-height:1.7;
+}
+.sql-keyword{color:var(--amber);font-weight:700}
+.sql-result-table{
+  border-collapse:separate;border-spacing:0;
+  margin-top:14px;font-size:11px;
+  font-family:monospace;width:100%;
+  composes:glass;
+  overflow:hidden;
+}
+.sql-result-table th{
+  padding:8px 12px;
+  border:1px solid var(--border-glass);
+  background:rgba(255,255,255,0.02);
+  text-align:left;font-weight:600;
+  color:var(--text-secondary);
+}
+.sql-result-table td{
+  padding:8px 12px;
+  border:1px solid rgba(255,255,255,0.03);
+  color:var(--text-primary);
+}
+
+/* ═══ Misc ═══ */
+.hearts{display:flex;gap:6px;font-size:20px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
+
+details summary{
+  cursor:pointer;font-size:12px;
+  color:var(--text-muted);padding:8px 0;
+  user-select:none;font-weight:500;
+  list-style:none;
+  transition:color .2s;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::before{
+  content:"\25b8";display:inline-block;
+  margin-right:8px;transition:transform .2s;
+  color:var(--amber);
+}
+details[open] summary::before{transform:rotate(90deg)}
+details[open] summary{color:var(--text-secondary)}
+
+.quick-start{display:flex;gap:10px;flex-wrap:wrap}
+.quick-start .btn{
+  border-radius:100px;padding:7px 16px;
+  font-size:12px;background:rgba(255,255,255,0.03);
+}
+.quick-start .btn:hover{
+  background:var(--amber-soft);
+  border-color:rgba(212,168,83,0.2);
+  color:var(--amber);
+  box-shadow:var(--amber-glow);
+}
+
+.warm-divider{
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);
+  margin:1.75rem 0;border:none;
+}
+
+/* ═══ Responsive ═══ */
+@media(max-width:600px){
+  .stats-bar{grid-template-columns:repeat(3,1fr)}
+  .stats-bar .stat:nth-child(4),.stats-bar .stat:nth-child(5){display:none}
+  .form-row{grid-template-columns:1fr 1fr}
+  .form-row button{grid-column:span 2}
+  .flashcard{width:100%;max-width:340px;height:210px}
+  .speed-opts{width:100%;max-width:340px}
+  .game-lobby{grid-template-columns:1fr}
+  .card-row{grid-template-columns:48px 1fr auto}
+  .card-row>div:nth-child(3){display:none}
+  .app{padding:1rem .75rem 3rem}
+}
+</style>
+
+<!-- LOADING -->
+<div id="app-loading">
+  <div class="spin"></div>
+  <div style="font-size:14px">Загружаем SQLite…</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app-main" style="display:none">
+
+<!-- Header -->
+<div class="app-header glass">
+  <div class="logo-char">学</div>
+  <div class="title-block">
+    <h1>Карточки иероглифов</h1>
+    <div class="subtitle">Учи китайский с умными карточками</div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-sql">💾 SQLite</span>
+    <span class="badge badge-streak" id="streak-badge">🔥 0 дней</span>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat glass"><div class="stat-val amber" id="s-total">0</div><div class="stat-lbl">карточек</div></div>
+  <div class="stat glass"><div class="stat-val" id="s-learned">0</div><div class="stat-lbl">изучено (≥3✓)</div></div>
+  <div class="stat glass"><div class="stat-val" id="s-correct">0</div><div class="stat-lbl">всего верных</div></div>
+  <div class="stat glass"><div class="stat-val" id="s-streak">0</div><div class="stat-lbl">рекорд серии</div></div>
+  <div class="stat glass"><div class="stat-val sage" id="s-days">0</div><div class="stat-lbl">🔥 дней подряд</div></div>
+</div>
+
+<!-- Mode selector -->
+<div class="mode-bar">
+  <span class="mode-lbl">Режим:</span>
+  <button class="mode-btn active" id="m-trans"    onclick="setMode('trans')">漢 → Перевод</button>
+  <button class="mode-btn"        id="m-pinyin"   onclick="setMode('pinyin')">漢 → Пиньинь</button>
+  <button class="mode-btn"        id="m-pintrans" onclick="setMode('pintrans')">Пиньинь → Перевод</button>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('add')">Добавить</button>
+  <button class="tab" onclick="switchTab('browse')">Карточки</button>
+  <button class="tab" onclick="switchTab('flash')">Повторение</button>
+  <button class="tab" onclick="switchTab('games')">🎮 Игры</button>
+  <button class="tab" onclick="switchTab('history')">📊 История</button>
+</div>
+
+<!-- ═══════════════ ADD ═══════════════ -->
+<div id="tab-add" class="section active">
+  <div class="form-row">
+    <div class="field"><label>Иероглиф</label><input id="inp-char" class="char-input" placeholder="你" maxlength="6"/></div>
+    <div class="field"><label>Пиньинь</label><input id="inp-pin" placeholder="nǐ hǎo"/></div>
+    <div class="field"><label>Перевод</label><input id="inp-trans" placeholder="привет"/></div>
+    <button class="btn btn-red" onclick="addCard()" style="height:36px">Добавить</button>
+  </div>
+  <div id="add-msg" style="font-size:13px;min-height:20px;text-align:center;font-weight:500"></div>
+
+  <div class="warm-divider"></div>
+  <div>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Быстрый старт</div>
+    <div class="quick-start">
+      <button class="btn btn-sm" onclick="addSample('你好','nǐ hǎo','привет')">你好</button>
+      <button class="btn btn-sm" onclick="addSample('谢谢','xiè xie','спасибо')">谢谢</button>
+      <button class="btn btn-sm" onclick="addSample('水','shuǐ','вода')">水</button>
+      <button class="btn btn-sm" onclick="addSample('爱','ài','любовь')">爱</button>
+      <button class="btn btn-sm" onclick="addSample('中国','zhōng guó','Китай')">中国</button>
+      <button class="btn btn-sm" onclick="addSample('朋友','péng yǒu','друг')">朋友</button>
+      <button class="btn btn-sm" onclick="addSample('吃饭','chī fàn','есть')">吃饭</button>
+      <button class="btn btn-sm" onclick="addSample('漂亮','piào liang','красивый')">漂亮</button>
+      <button class="btn btn-sm" onclick="addSample('学习','xué xí','учиться')">学习</button>
+      <button class="btn btn-sm" onclick="addSample('音乐','yīn yuè','музыка')">音乐</button>
+      <button class="btn btn-sm" onclick="addSample('大','dà','большой')">大</button>
+      <button class="btn btn-sm" onclick="addSample('小','xiǎo','маленький')">小</button>
+      <button class="btn btn-sm" onclick="addSample('好','hǎo','хорошо')">好</button>
+      <button class="btn btn-sm" onclick="addSample('我','wǒ','я')">我</button>
+      <button class="btn btn-sm" onclick="addSample('他','tā','он')">他</button>
+    </div>
+  </div>
+
+  <div class="warm-divider"></div>
+  <div>
+    <details>
+      <summary>🗃️ SQL-консоль (прямые запросы к базе)</summary>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+        <textarea id="sql-input" rows="3" style="font-family:monospace;font-size:12px;resize:vertical;border-radius:var(--radius-sm)" placeholder="SELECT * FROM cards LIMIT 10;"></textarea>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-red" onclick="runSQL()">▶ Выполнить</button>
+          <button class="btn btn-sm" onclick="setSQL('SELECT char, pinyin, trans, correct, wrong FROM cards ORDER BY correct DESC;')">Все карточки</button>
+          <button class="btn btn-sm" onclick="setSQL('SELECT * FROM sessions ORDER BY date DESC LIMIT 20;')">История занятий</button>
+          <button class="btn btn-sm" onclick="setSQL('SELECT date, cards_reviewed, correct, CAST(ROUND(correct*100.0/MAX(cards_reviewed,1)) AS INT)||\'%\' AS accuracy FROM sessions ORDER BY date DESC;')">Точность по дням</button>
+          <button class="btn btn-sm" onclick="setSQL('SELECT char, pinyin, trans, correct, wrong, CAST(ROUND(correct*100.0/MAX(correct+wrong,1)) AS INT)||\'%\' AS accuracy FROM cards ORDER BY wrong DESC LIMIT 10;')">Трудные слова</button>
+        </div>
+        <div id="sql-result" style="overflow-x:auto;max-height:220px;overflow-y:auto"></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════ BROWSE ═══════════════ -->
+<div id="tab-browse" class="section">
+  <div class="search-row">
+    <input id="search" placeholder="Поиск..." oninput="renderBrowse()"/>
+    <button class="btn btn-sm" style="color:var(--terracotta);border-color:var(--terracotta)" onclick="clearAll()">Очистить всё</button>
+  </div>
+  <div class="card-grid" id="browse-list"></div>
+</div>
+
+<!-- ═══════════════ FLASH ═══════════════ -->
+<div id="tab-flash" class="section">
+  <div class="flashcard-wrap" id="flash-wrap"></div>
+</div>
+
+<!-- ═══════════════ GAMES ═══════════════ -->
+<div id="tab-games" class="section">
+  <div id="game-screen"></div>
+</div>
+
+<!-- ═══════════════ HISTORY ═══════════════ -->
+<div id="tab-history" class="section">
+  <div id="history-content"></div>
+</div>
+
+</div><!-- .app -->
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+let db = null;
+let SQL = null;
+const SERVER_URL = 'http://192.168.1.10:3000'; // поменяй на IP ноутбука если нужно (hostname -I)
+let cards = [];
+let streak = 0, bestStreak = 0, totalCorrect = 0;
+let flashIdx = 0, flipped = false;
+let timerInterval = null;
+let studyMode = 'trans'; // 'trans' | 'pinyin' | 'pintrans'
+
+function checkStreak() {
+    const res = db.exec("SELECT last_activity, streak_count FROM user_stats WHERE id = 1");
+    if (res.length === 0) return;
+
+    const [lastDateStr, streakCount] = res[0].values[0];
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    if (lastDateStr === yesterdayStr) {
+        // Заходил вчера — страйк живёт
+    } else if (lastDateStr !== today) {
+        // Пропустил день или первый раз — сброс
+        db.run("UPDATE user_stats SET streak_count = 0 WHERE id = 1");
+        db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('streak', '0')");
+    }
+}
+
+function markActivity() {
+    const today = new Date().toISOString().split('T')[0];
+    db.run(`
+        UPDATE user_stats 
+        SET streak_count = CASE 
+            WHEN last_activity = (DATE('now', '-1 day')) THEN streak_count + 1
+            WHEN last_activity = CURRENT_DATE THEN streak_count
+            ELSE 1 
+        END,
+        last_activity = CURRENT_DATE 
+        WHERE id = 1
+    `);
+    // Синхронизируем meta (для совместимости с сервером)
+    const row = db.exec("SELECT streak_count FROM user_stats WHERE id = 1");
+    if (row.length) {
+        const s = String(row[0].values[0][0]);
+        db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_date', ?)", [today]);
+        db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('streak', ?)", [s]);
+    }
+    saveDB();
+    syncWithServer().catch(() => {}); // Тихо синкаем — не блокируем UI если сервер недоступен
+}
+
+// ─── DB Init ────────────────────────────────────────────────────────────────
+function ensureSchema() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cards (
+      char TEXT PRIMARY KEY,
+      pinyin TEXT NOT NULL,
+      trans TEXT NOT NULL,
+      correct INTEGER DEFAULT 0,
+      wrong INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (date('now'))
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      date TEXT PRIMARY KEY,
+      cards_reviewed INTEGER DEFAULT 0,
+      correct INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS stats (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE TABLE IF NOT EXISTS user_stats (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      last_activity DATE,
+      streak_count INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+  db.run('INSERT OR IGNORE INTO user_stats (id, last_activity, streak_count) VALUES (1, NULL, 0);');
+}
+
+async function initDB() {
+  try {
+    SQL = await initSqlJs({
+      locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+    });
+    const saved = localStorage.getItem('zh_sqldb_v2');
+    if (saved) {
+      try {
+        const buf = Uint8Array.from(atob(saved), c => c.charCodeAt(0));
+        db = new SQL.Database(buf);
+      } catch(e) { db = new SQL.Database(); }
+    } else {
+      db = new SQL.Database();
+    }
+    // Schema
+    ensureSchema();
+    saveDB();
+    try { await loadFromServer(); } catch(e) { console.warn('Сервер недоступен, работаем локально:', e.message); }
+    ensureSchema(); // повторно после загрузки с сервера — на случай если там пустая БД
+    syncFromDB();
+    recordSession();
+    checkStreak();
+    document.getElementById('app-loading').style.display = 'none';
+    document.getElementById('app-main').style.display = 'block';
+    updateStats();
+  } catch(e) {
+    document.getElementById('app-loading').innerHTML =
+      `<div style="color:var(--amber);font-size:13px">Ошибка загрузки sql.js:<br>${e.message}</div>`;
+  }
+}
+
+function u8ToBase64(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+function saveDB() {
+  try { localStorage.setItem('zh_sqldb_v2', u8ToBase64(db.export())); } catch(e) {}
+}
+async function syncWithServer() {
+    // 1. Отправка (Upload)
+    const data = db.export();
+    await fetch(`${SERVER_URL}/upload-db`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: data
+    });
+    console.log("Синхронизировано с сервером!");
+}
+
+async function loadFromServer() {
+    // 2. Загрузка (Download)
+    const response = await fetch(`${SERVER_URL}/download-db`);
+    if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const u8 = new Uint8Array(arrayBuffer);
+        db = new SQL.Database(u8);
+        syncFromDB(); // Обновляем переменные в JS
+        updateStats();
+        renderBrowse();
+    }
+}
+
+function syncFromDB() {
+  cards = [];
+  const r1 = db.exec('SELECT char, pinyin, trans, correct, wrong FROM cards ORDER BY created_at');
+  if (r1.length) r1[0].values.forEach(r =>
+    cards.push({ char:r[0], pinyin:r[1], trans:r[2], correct:r[3]||0, wrong:r[4]||0 }));
+  const r2 = db.exec("SELECT key,value FROM stats WHERE key IN ('best_streak','total_correct')");
+  if (r2.length) r2[0].values.forEach(([k,v]) => {
+    if (k==='best_streak') bestStreak = parseInt(v)||0;
+    if (k==='total_correct') totalCorrect = parseInt(v)||0;
+  });
+}
+
+// ─── Session / Streak ────────────────────────────────────────────────────────
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+function recordSession() {
+  db.run('INSERT OR IGNORE INTO sessions (date) VALUES (?)', [todayStr()]);
+  saveDB();
+}
+
+function bumpSession(isCorrect) {
+  db.run('UPDATE sessions SET cards_reviewed=cards_reviewed+1, correct=correct+? WHERE date=?',
+    [isCorrect?1:0, todayStr()]);
+  saveDB();
+}
+
+function getSessionStreak() {
+  const res = db.exec('SELECT date FROM sessions ORDER BY date DESC');
+  if (!res.length) return 0;
+  const dates = res[0].values.map(r=>r[0]);
+  let n = 0;
+  const d = new Date();
+  for (const date of dates) {
+    if (date === d.toISOString().slice(0,10)) { n++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return n;
+}
+
+// ─── Stats display ───────────────────────────────────────────────────────────
+function updateStats() {
+  const days = getSessionStreak();
+  document.getElementById('s-total').textContent = cards.length;
+  document.getElementById('s-learned').textContent = cards.filter(c=>c.correct>=3).length;
+  document.getElementById('s-correct').textContent = totalCorrect;
+  document.getElementById('s-streak').textContent = bestStreak;
+  document.getElementById('s-days').textContent = days;
+  document.getElementById('streak-badge').textContent = `🔥 ${days} дн.`;
+}
+
+// ─── Mode ───────────────────────────────────────────────────────────────────
+function setMode(m) {
+  studyMode = m;
+  ['trans','pinyin','pintrans'].forEach(k =>
+    document.getElementById('m-'+k).classList.toggle('active', k===m));
+  if (document.getElementById('tab-flash').classList.contains('active')) { flashIdx=0; renderFlash(); }
+  if (document.getElementById('tab-games').classList.contains('active')) renderGameLobby();
+}
+function modeLabel() {
+  return studyMode==='trans'?'漢 → Перевод': studyMode==='pinyin'?'漢 → Пиньинь':'Пиньинь → Перевод';
+}
+function cardAnswer(c) { return studyMode==='pinyin' ? c.pinyin : c.trans; }
+
+// ─── Add cards ───────────────────────────────────────────────────────────────
+function addCard() {
+  const ch=document.getElementById('inp-char').value.trim();
+  const pi=document.getElementById('inp-pin').value.trim();
+  const tr=document.getElementById('inp-trans').value.trim();
+  if (!ch||!pi||!tr) { showMsg('Заполни все поля!','var(--red)'); return; }
+  try {
+    db.run('INSERT INTO cards (char,pinyin,trans) VALUES (?,?,?)', [ch,pi,tr]);
+    saveDB();
+    cards.push({char:ch,pinyin:pi,trans:tr,correct:0,wrong:0});
+    updateStats();
+    ['inp-char','inp-pin','inp-trans'].forEach(id=>document.getElementById(id).value='');
+    showMsg('Добавлено: '+ch+' ('+pi+') — '+tr,'var(--grn)');
+  } catch(e) { showMsg('Уже есть!','var(--red)'); }
+}
+function addSample(ch,pi,tr) {
+  if (cards.find(c=>c.char===ch)) { showMsg(ch+' уже есть','var(--mu)'); return; }
+  try {
+    db.run('INSERT INTO cards (char,pinyin,trans) VALUES (?,?,?)',[ch,pi,tr]);
+    saveDB(); cards.push({char:ch,pinyin:pi,trans:tr,correct:0,wrong:0});
+    updateStats(); showMsg('Добавлено: '+ch,'var(--grn)');
+  } catch(e) {}
+}
+function showMsg(msg,color) {
+  const el=document.getElementById('add-msg');
+  el.textContent=msg; el.style.color=color;
+  setTimeout(()=>el.textContent='',2000);
+}
+
+// ─── Mark result (SQL UPDATE) ────────────────────────────────────────────────
+function markCard(char, isCorrect) {
+  const c = cards.find(x=>x.char===char); if(!c) return;
+  if (isCorrect) {
+    c.correct++;
+    db.run('UPDATE cards SET correct=correct+1 WHERE char=?',[char]);
+    totalCorrect++; streak++; bestStreak=Math.max(bestStreak,streak);
+  } else {
+    c.wrong++;
+    db.run('UPDATE cards SET wrong=wrong+1 WHERE char=?',[char]);
+    streak=0;
+  }
+  db.run("INSERT OR REPLACE INTO stats VALUES ('best_streak',?)",[String(bestStreak)]);
+  db.run("INSERT OR REPLACE INTO stats VALUES ('total_correct',?)",[String(totalCorrect)]);
+  db.run(`INSERT OR IGNORE INTO user_stats (id, last_activity, streak_count) VALUES (1, NULL, 0);`);
+  bumpSession(isCorrect);
+  saveDB(); updateStats();
+  markActivity();
+}
+
+// ─── Browse ──────────────────────────────────────────────────────────────────
+function renderBrowse() {
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const filtered=cards.filter(c=>c.char.includes(q)||c.pinyin.toLowerCase().includes(q)||c.trans.toLowerCase().includes(q));
+  const list=document.getElementById('browse-list');
+  if (!filtered.length) { list.innerHTML='<div class="empty glass">Нет карточек</div>'; return; }
+  list.innerHTML=filtered.map(c=>{
+    const acc=c.correct+c.wrong>0?Math.round(c.correct/(c.correct+c.wrong)*100)+'%':'—';
+    const esc=c.char.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return`<div class="card-row glass">
+      <div class="card-char">${c.char}</div>
+      <div class="card-info"><div style="font-weight:500">${c.trans}</div><div class="card-pinyin">${c.pinyin}</div></div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:right">точность<br><b>${acc}</b><br><span style="font-size:10px">✓${c.correct} ✗${c.wrong}</span></div>
+      <button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="deleteCard('${esc}')">✕</button>
+    </div>`;
+  }).join('');
+}
+function deleteCard(char) {
+  db.run('DELETE FROM cards WHERE char=?',[char]);
+  saveDB(); cards=cards.filter(c=>c.char!==char); updateStats(); renderBrowse();
+}
+function clearAll() {
+  if(!confirm('Удалить все карточки?'))return;
+  db.run('DELETE FROM cards'); saveDB(); cards=[]; updateStats(); renderBrowse();
+}
+
+// ─── Flashcard ───────────────────────────────────────────────────────────────
+function renderFlash() {
+  const wrap=document.getElementById('flash-wrap');
+  if (!cards.length) { wrap.innerHTML='<div class="empty glass">Добавь карточки</div>'; return; }
+  if (flashIdx>=cards.length) flashIdx=0;
+  flipped=false;
+  const c=cards[flashIdx];
+  const pct=Math.round((flashIdx+1)/cards.length*100);
+  const esc=c.char.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  let front, back;
+  if (studyMode==='pintrans') {
+    front=`<div style="font-size:34px;color:var(--amber);text-align:center">${c.pinyin}</div>
+           <div style="font-size:12px;color:var(--text-muted)">нажми чтобы открыть</div>`;
+    back=`<div style="font-size:52px">${c.char}</div>
+          <div style="font-size:18px">${c.trans}</div>`;
+  } else if (studyMode==='pinyin') {
+    front=`<div style="font-size:60px">${c.char}</div>
+           <div style="font-size:12px;color:var(--text-muted)">нажми чтобы открыть</div>`;
+    back=`<div style="font-size:30px;color:var(--amber)">${c.pinyin}</div>
+          <div style="font-size:14px;color:var(--text-muted)">${c.trans}</div>`;
+  } else {
+    front=`<div style="font-size:60px">${c.char}</div>
+           <div style="font-size:12px;color:var(--text-muted)">нажми чтобы открыть</div>`;
+    back=`<div style="font-size:22px;color:var(--amber)">${c.pinyin}</div>
+          <div style="font-size:20px">${c.trans}</div>`;
+  }
+
+  wrap.innerHTML=`
+    <div class="progress-bar" style="width:100%;max-width:360px"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="flashcard" id="fc" onclick="flipCard()">
+      <div class="flashcard-inner">
+        <div class="fc-face">${front}<span class="fc-mode-tag">${modeLabel()}</span></div>
+        <div class="fc-face fc-back">${back}</div>
+      </div>
+    </div>
+    <div class="fc-btns" id="fc-btns" style="opacity:0;pointer-events:none;transition:opacity .3s">
+      <button class="btn btn-wrong" onclick="markFlash('${esc}',false)">✗ Не знаю</button>
+      <button class="btn btn-right" onclick="markFlash('${esc}',true)">✓ Знаю</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="btn btn-sm" onclick="flashIdx=(flashIdx-1+cards.length)%cards.length;renderFlash()">←</button>
+      <span style="font-size:13px;color:var(--text-muted)">${flashIdx+1} / ${cards.length}</span>
+      <button class="btn btn-sm" onclick="flashIdx=(flashIdx+1)%cards.length;renderFlash()">→</button>
+    </div>
+    <button class="btn btn-sm" style="color:var(--text-muted)" onclick="shuffleFlash()">🔀 перемешать</button>`;
+}
+function flipCard() {
+  const fc=document.getElementById('fc'),b=document.getElementById('fc-btns');
+  if(!fc)return; flipped=!flipped; fc.classList.toggle('flipped',flipped);
+  if(flipped){b.style.opacity='1';b.style.pointerEvents='all'}
+}
+function markFlash(char,ok) {
+  markCard(char,ok);
+  flashIdx=(flashIdx+1)%cards.length;
+  renderFlash();
+}
+function shuffleFlash() {
+  for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]]}
+  flashIdx=0; renderFlash();
+}
+
+// ─── Tab switching ───────────────────────────────────────────────────────────
+function switchTab(t) {
+  const names=['add','browse','flash','games','history'];
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',names[i]===t));
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='browse') renderBrowse();
+  else if(t==='flash'){flashIdx=0;renderFlash()}
+  else if(t==='games'){clearTimer();renderGameLobby()}
+  else if(t==='history') renderHistory();
+}
+function clearTimer(){if(timerInterval){clearInterval(timerInterval);timerInterval=null}}
+
+// ─── Game Lobby ──────────────────────────────────────────────────────────────
+function renderGameLobby() {
+  clearTimer();
+  document.getElementById('game-screen').innerHTML=`
+    <div style="margin-bottom:1.25rem;font-size:13px;color:var(--text-muted)">
+      Нужно минимум 4 карточки &nbsp;·&nbsp; Режим: <b>${modeLabel()}</b>
+    </div>
+    <div class="game-lobby">
+      <div class="game-card glass" onclick="startSpeed()">
+        <div class="game-icon">⚡</div><div class="game-title">Тайм-атака</div>
+        <div class="game-badge">60 секунд</div>
+        <div class="game-desc">Ответь на как можно больше вопросов за минуту. Комбо множит очки!</div>
+      </div>
+      <div class="game-card glass" onclick="startSurvival()">
+        <div class="game-icon">❤️</div><div class="game-title">Выживание</div>
+        <div class="game-badge">3 жизни</div>
+        <div class="game-desc">У тебя 3 жизни. Ошибаешься — теряешь одну. Сколько выдержишь?</div>
+      </div>
+      <div class="game-card glass" onclick="startTyping()">
+        <div class="game-icon">⌨️</div><div class="game-title">Печать</div>
+        <div class="game-badge">по памяти</div>
+        <div class="game-desc">Напечатай ответ вручную. Никаких подсказок — только память!</div>
+      </div>
+      <div class="game-card glass" onclick="startMatching()">
+        <div class="game-icon">🔗</div><div class="game-title">Пары</div>
+        <div class="game-badge">на скорость</div>
+        <div class="game-desc">Соедини иероглифы с ответами. Чем быстрее — тем больше очков.</div>
+      </div>
+    </div>`;
+}
+
+// ─── Speed ───────────────────────────────────────────────────────────────────
+function startSpeed() {
+  if(cards.length<4){alert('Нужно минимум 4 карточки!');return}
+  let timeLeft=60,score=0,combo=0;
+  let pool=[...cards].sort(()=>Math.random()-.5);
+  let qi=0;
+
+  function getOpts(c) {
+    return [...cards.filter(x=>x.char!==c.char).sort(()=>Math.random()-.5).slice(0,3),c].sort(()=>Math.random()-.5);
+  }
+  function questionHTML(c) {
+    if(studyMode==='pintrans') return `<div class="speed-char" style="font-size:44px;color:var(--amber)">${c.pinyin}</div>`;
+    return `<div class="speed-char">${c.char}</div>`+(studyMode==='trans'?`<div style="font-size:14px;color:var(--amber)">${c.pinyin}</div>`:'');
+  }
+
+  function render() {
+    const c=pool[qi%pool.length];const opts=getOpts(c);
+    const r=63,circ=2*Math.PI*r;
+    document.getElementById('game-screen').innerHTML=`
+      <div class="speed-arena">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:340px">
+          <div class="timer-ring">
+            <svg width="64" height="64" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--border)" stroke-width="10"/>
+              <circle id="timer-arc" cx="70" cy="70" r="${r}" fill="none" stroke="var(--red)" stroke-width="10" stroke-linecap="round"
+                stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-timeLeft/60)}" style="transition:stroke-dashoffset .9s linear"/>
+            </svg>
+            <span class="timer-val" id="timer-val">${timeLeft}</span>
+          </div>
+          <div style="text-align:center"><div style="font-size:26px;font-weight:700;font-family:var(--font-ui)" id="score-val">${score}</div><div style="font-size:11px;color:var(--text-muted)">очков</div></div>
+          <div style="text-align:center"><div class="combo-badge" id="combo-badge">${combo>1?'×'+combo+' COMBO':''}</div><div style="font-size:11px;color:var(--text-muted)">комбо</div></div>
+        </div>
+        ${questionHTML(c)}
+        <div class="speed-opts">
+          ${opts.map(o=>`<button class="speed-opt" onclick="spA('${esc(o.char)}','${esc(c.char)}')">${cardAnswer(o)}</button>`).join('')}
+        </div>
+      </div>`;
+    if(!timerInterval){
+      timerInterval=setInterval(()=>{
+        timeLeft--;
+        const tv=document.getElementById('timer-val'),arc=document.getElementById('timer-arc');
+        if(tv)tv.textContent=timeLeft;
+        if(arc)arc.style.strokeDashoffset=String(circ*(1-timeLeft/60));
+        if(timeLeft<=0){clearTimer();showSpeedResult(score)}
+      },1000);
+    }
+  }
+
+  window.spA=function(chosen,correct){
+    document.querySelectorAll('.speed-opt').forEach(b=>{
+      b.disabled=true;
+      const cc=cards.find(x=>x.char===correct),ch=cards.find(x=>x.char===chosen);
+      if(cc&&b.textContent===cardAnswer(cc))b.classList.add('correct');
+      else if(chosen!==correct&&ch&&b.textContent===cardAnswer(ch))b.classList.add('wrong');
+    });
+    if(chosen===correct){
+      combo++;score+=10*Math.max(1,combo);
+      markCard(correct,true);
+      const badge=document.getElementById('combo-badge');
+      if(badge){badge.textContent=combo>1?'×'+combo+' COMBO':'';badge.classList.add('combo-pop');setTimeout(()=>badge.classList.remove('combo-pop'),150)}
+    } else { combo=0; markCard(correct,false); }
+    const sv=document.getElementById('score-val');if(sv)sv.textContent=score;
+    qi++; setTimeout(render,700);
+  };
+  render();
+}
+function showSpeedResult(score) {
+  const m=score>=200?'🥇':score>=100?'🥈':'🥉';
+  document.getElementById('game-screen').innerHTML=`<div class="result-panel glass">
+    <div style="font-size:44px">${m}</div>
+    <div class="result-big">${score}</div>
+    <div class="result-sub">очков за 60 секунд</div>
+    <div style="font-size:13px;color:var(--text-muted)">${score>=200?'Невероятно! 🤩':score>=100?'Отлично!':'Продолжай тренироваться!'}</div>
+    <div style="display:flex;gap:10px;margin-top:.5rem">
+      <button class="btn btn-red" onclick="startSpeed()">Ещё раз</button>
+      <button class="btn" onclick="renderGameLobby()">← Меню</button>
+    </div>
+  </div>`;
+}
+
+// ─── Survival ─────────────────────────────────────────────────────────────────
+function startSurvival() {
+  if(cards.length<4){alert('Нужно минимум 4 карточки!');return}
+  let lives=3,score=0;
+  let pool=[...cards].sort(()=>Math.random()-.5);
+  let qi=0;
+  function getOpts(c){return[...cards.filter(x=>x.char!==c.char).sort(()=>Math.random()-.5).slice(0,3),c].sort(()=>Math.random()-.5)}
+  function questionHTML(c){
+    if(studyMode==='pintrans')return`<div class="speed-char" style="font-size:44px;color:var(--amber)">${c.pinyin}</div>`;
+    return`<div class="speed-char">${c.char}</div>`+(studyMode==='trans'?`<div style="font-size:14px;color:var(--amber)">${c.pinyin}</div>`:'');
+  }
+  function render(){
+    const c=pool[qi%pool.length],opts=getOpts(c);
+    document.getElementById('game-screen').innerHTML=`
+      <div class="speed-arena">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:340px">
+          <div class="hearts">${'❤️'.repeat(lives)+'🖤'.repeat(3-lives)}</div>
+          <div style="text-align:center"><div style="font-size:26px;font-weight:700;font-family:var(--font-ui)">${score}</div><div style="font-size:11px;color:var(--text-muted)">очков</div></div>
+          <div style="font-size:13px;color:var(--text-muted)">№${qi+1}</div>
+        </div>
+        ${questionHTML(c)}
+        <div class="speed-opts">
+          ${opts.map(o=>`<button class="speed-opt" onclick="svA('${esc(o.char)}','${esc(c.char)}')">${cardAnswer(o)}</button>`).join('')}
+        </div>
+      </div>`;
+  }
+  window.svA=function(chosen,correct){
+    document.querySelectorAll('.speed-opt').forEach(b=>{
+      b.disabled=true;
+      const cc=cards.find(x=>x.char===correct),ch=cards.find(x=>x.char===chosen);
+      if(cc&&b.textContent===cardAnswer(cc))b.classList.add('correct');
+      else if(chosen!==correct&&ch&&b.textContent===cardAnswer(ch))b.classList.add('wrong');
+    });
+    if(chosen===correct){score+=15;markCard(correct,true)}
+    else{lives--;markCard(correct,false)}
+    qi++;
+    if(lives<=0){setTimeout(()=>showSurvResult(score,qi),800);return}
+    setTimeout(render,700);
+  };
+  render();
+}
+function showSurvResult(score,total){
+  document.getElementById('game-screen').innerHTML=`<div class="result-panel glass">
+    <div style="font-size:44px">💀</div>
+    <div class="result-big">${total-1}</div>
+    <div class="result-sub">вопросов пройдено · ${score} очков</div>
+    <div style="display:flex;gap:10px;margin-top:.5rem">
+      <button class="btn btn-red" onclick="startSurvival()">Ещё раз</button>
+      <button class="btn" onclick="renderGameLobby()">← Меню</button>
+    </div>
+  </div>`;
+}
+
+// ─── Typing ───────────────────────────────────────────────────────────────────
+function startTyping() {
+  if(!cards.length){alert('Нужно хотя бы одну карточку!');return}
+  let pool=[...cards].sort(()=>Math.random()-.5);
+  let qi=0,score=0;
+
+  function getCorrect(c){ return studyMode==='pinyin'?c.pinyin:c.trans; }
+  function getQuestion(c){
+    if(studyMode==='pintrans')
+      return`<div style="font-size:36px;color:var(--amber);text-align:center">${c.pinyin}</div>`;
+    return`<div class="typing-char">${c.char}</div>`+
+      (studyMode==='trans'?`<div class="typing-hint">${c.pinyin}</div>`:'');
+  }
+  function getLabel(){ return studyMode==='pinyin'?'Напиши пиньинь:':'Напечатай перевод:'; }
+  function getPlaceholder(){ return studyMode==='pinyin'?'пиньинь…':'перевод…'; }
+
+  function render(){
+    if(qi>=pool.length){
+      document.getElementById('game-screen').innerHTML=`<div class="result-panel glass">
+        <div style="font-size:44px">✏️</div>
+        <div class="result-big">${score}/${pool.length}</div>
+        <div class="result-sub">верных ответов</div>
+        <div style="display:flex;gap:10px;margin-top:.5rem">
+          <button class="btn btn-red" onclick="startTyping()">Ещё раз</button>
+          <button class="btn" onclick="renderGameLobby()">← Меню</button>
+        </div>
+      </div>`;return;
+    }
+    const c=pool[qi];
+    document.getElementById('game-screen').innerHTML=`
+      <div class="typing-area">
+        <div style="font-size:12px;color:var(--text-muted)">${qi+1} / ${pool.length}</div>
+        <div class="progress-bar" style="width:100%;max-width:360px"><div class="progress-fill" style="width:${Math.round(qi/pool.length*100)}%"></div></div>
+        ${getQuestion(c)}
+        <div style="font-size:12px;color:var(--text-muted)">${getLabel()}</div>
+        <input class="typing-input" id="typing-inp" placeholder="${getPlaceholder()}" autocomplete="off"/>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-red" id="check-btn" onclick="tyCheck('${esc(getCorrect(c))}','${esc(c.char)}')">Проверить</button>
+          <button class="btn btn-sm" style="color:var(--text-muted)" onclick="tySkip('${esc(c.char)}')">Пропустить</button>
+        </div>
+        <div id="typing-feedback" style="min-height:20px;font-size:13px"></div>
+      </div>`;
+    const inp=document.getElementById('typing-inp');
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('check-btn').click()});
+    inp.focus();
+  }
+
+  window.tyCheck=function(correct,char){
+    const inp=document.getElementById('typing-inp');if(!inp)return;
+    const val=inp.value.trim().toLowerCase();
+    const ok=val===correct.toLowerCase()||(correct.toLowerCase().includes(val)&&val.length>2);
+    inp.classList.add(ok?'ok':'err');
+    const fb=document.getElementById('typing-feedback');
+    if(ok){score++;fb.textContent='✓ Верно!';fb.style.color='var(--grn)';markCard(char,true)}
+    else{fb.textContent='✗ Правильно: '+correct;fb.style.color='var(--red)';markCard(char,false)}
+    qi++;setTimeout(render,ok?800:1500);
+  };
+  window.tySkip=function(char){markCard(char,false);qi++;render()};
+  render();
+}
+
+// ─── Matching ─────────────────────────────────────────────────────────────────
+function startMatching() {
+  if(cards.length<4){alert('Нужно минимум 4 карточки!');return}
+  const pool=[...cards].sort(()=>Math.random()-.5).slice(0,Math.min(6,cards.length));
+  let selected=null,matched=new Set(),startTime=Date.now(),moves=0;
+  const lefts=[...pool].sort(()=>Math.random()-.5);
+  const rights=[...pool].sort(()=>Math.random()-.5);
+
+  function leftLabel(c){ return studyMode==='pintrans'?`<span style="color:var(--amber)">${c.pinyin}</span>`:c.char; }
+  function rightLabel(c){ return cardAnswer(c); }
+
+  function render(){
+    const elapsed=Math.round((Date.now()-startTime)/1000);
+    const lh=studyMode==='pintrans'?'Пиньинь':'Иероглиф';
+    const rh=studyMode==='pinyin'?'Пиньинь':'Перевод';
+    document.getElementById('game-screen').innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:13px;color:var(--text-muted)">${lh} ↔ ${rh}</div>
+        <div style="font-size:13px;color:var(--text-muted)">${matched.size/2}/${pool.length} · ${elapsed}с</div>
+      </div>
+      <div class="match-grid">
+        <div class="match-col">
+          ${lefts.map((c,i)=>`<div class="match-item ${matched.has('l'+i)?'matched':selected==='l'+i?'selected':''}" id="l${i}" onclick="mClick('l${i}','${esc(c.char)}')">${leftLabel(c)}</div>`).join('')}
+        </div>
+        <div class="match-col">
+          ${rights.map((c,i)=>`<div class="match-item ${matched.has('r'+i)?'matched':selected==='r'+i?'selected':''}" id="r${i}" onclick="mClick('r${i}','${esc(c.char)}')">${rightLabel(c)}</div>`).join('')}
+        </div>
+      </div>
+      <button class="btn btn-sm" style="margin-top:1.25rem;color:var(--text-muted)" onclick="startMatching()">Перезапустить</button>`;
+  }
+
+  window.mClick=function(id,char){
+    if(matched.has(id))return;
+    if(!selected){selected=id;moves++;render();return}
+    if(selected===id){selected=null;render();return}
+    const st=selected[0],ct=id[0];
+    if(st===ct){selected=id;render();return}
+    const si=parseInt(selected.slice(1)),ci=parseInt(id.slice(1));
+    const sc=(st==='l'?lefts[si]:rights[si]).char;
+    const cc=(ct==='l'?lefts[ci]:rights[ci]).char;
+    moves++;
+    if(sc===cc){
+      matched.add(selected);matched.add(id);selected=null;
+      if(matched.size===pool.length*2){
+        const t=Math.round((Date.now()-startTime)/1000);
+        const s=Math.max(0,1000-t*10-moves*5);
+        setTimeout(()=>{
+          document.getElementById('game-screen').innerHTML=`<div class="result-panel glass">
+            <div style="font-size:44px">🔗</div>
+            <div class="result-big">${s}</div>
+            <div class="result-sub">очков · ${t}с · ${moves} ходов</div>
+            <div style="display:flex;gap:10px;margin-top:.5rem">
+              <button class="btn btn-red" onclick="startMatching()">Ещё раз</button>
+              <button class="btn" onclick="renderGameLobby()">← Меню</button>
+            </div>
+          </div>`;
+        },300);
+      } else render();
+    } else {
+      const prev=selected;selected=null;render();
+      setTimeout(()=>{
+        [prev,id].forEach(x=>{const e=document.getElementById(x);if(e){e.classList.add('shake');setTimeout(()=>e.classList.remove('shake'),300)}});
+      },50);
+    }
+  };
+  render();
+}
+
+// ─── History ──────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const sessionStreak = getSessionStreak();
+  const res = db.exec('SELECT date, cards_reviewed, correct FROM sessions ORDER BY date DESC LIMIT 30');
+  const total_days = db.exec('SELECT COUNT(*) FROM sessions')[0]?.values[0][0]||0;
+  const best_day = db.exec('SELECT date, cards_reviewed FROM sessions ORDER BY cards_reviewed DESC LIMIT 1')[0]?.values[0];
+
+  let html=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+      <div class="stat glass"><div class="stat-val sage">${sessionStreak}</div><div class="stat-lbl">🔥 дней подряд</div></div>
+      <div class="stat glass"><div class="stat-val">${total_days}</div><div class="stat-lbl">всего занятий</div></div>
+      <div class="stat glass"><div class="stat-val">${best_day?best_day[1]:0}</div><div class="stat-lbl">рекорд за день</div></div>
+    </div>`;
+
+  if (!res.length || !res[0].values.length) {
+    html += '<div class="empty glass">Нет данных о занятиях</div>';
+  } else {
+    html += `<table class="session-table glass">
+      <thead><tr><th>Дата</th><th>Карточек</th><th>Верных</th><th>Точность</th></tr></thead>
+      <tbody>`;
+    res[0].values.forEach(([date,rev,cor])=>{
+      const pct=rev>0?Math.round(cor/rev*100):0;
+      const color=pct>=80?'var(--grn)':pct>=50?'var(--gold)':'var(--red)';
+      html+=`<tr>
+        <td>${date}</td><td>${rev}</td><td>${cor}</td>
+        <td><div class="acc-bar" style="width:${pct*0.8}px;background:${color}"></div>${pct}%</td>
+      </tr>`;
+    });
+    html+='</tbody></table>';
+  }
+
+  html+=`
+    <details style="margin-top:1.5rem">
+      <summary>🗃️ SQL-запросы для страйка и статистики</summary>
+      <div class="sql-block glass" style="margin-top:12px">
+<pre><span class="sql-keyword">-- Страйк занятий подряд</span>
+<span class="sql-keyword">WITH RECURSIVE</span> streak_cte(d, n) AS (
+  <span class="sql-keyword">SELECT</span> date('now'), 1
+  <span class="sql-keyword">UNION ALL</span>
+  <span class="sql-keyword">SELECT</span> date(d, '-1 day'), n+1
+  <span class="sql-keyword">FROM</span> streak_cte
+  <span class="sql-keyword">WHERE</span> EXISTS (
+    <span class="sql-keyword">SELECT</span> 1 <span class="sql-keyword">FROM</span> sessions <span class="sql-keyword">WHERE</span> date = date(d, '-1 day')
+  )
+)
+<span class="sql-keyword">SELECT</span> MAX(n) AS streak <span class="sql-keyword">FROM</span> streak_cte;
+
+<span class="sql-keyword">-- Прогресс карточек</span>
+<span class="sql-keyword">SELECT</span> char, pinyin, trans,
+  correct, wrong,
+  ROUND(correct * 100.0 / MAX(correct+wrong, 1)) || '%' AS accuracy
+<span class="sql-keyword">FROM</span> cards
+<span class="sql-keyword">ORDER BY</span> accuracy <span class="sql-keyword">DESC</span>;
+
+<span class="sql-keyword">-- Сохранить новую карточку</span>
+<span class="sql-keyword">INSERT INTO</span> cards (char, pinyin, trans)
+<span class="sql-keyword">VALUES</span> ('水', 'shuǐ', 'вода');
+
+<span class="sql-keyword">-- Занятия за последнюю неделю</span>
+<span class="sql-keyword">SELECT</span> date, cards_reviewed, correct
+<span class="sql-keyword">FROM</span> sessions
+<span class="sql-keyword">WHERE</span> date >= date('now', '-7 days')
+<span class="sql-keyword">ORDER BY</span> date;
+
+<span class="sql-keyword">-- Трудные слова (больше всего ошибок)</span>
+<span class="sql-keyword">SELECT</span> char, pinyin, trans, wrong
+<span class="sql-keyword">FROM</span> cards
+<span class="sql-keyword">WHERE</span> wrong > 0
+<span class="sql-keyword">ORDER BY</span> wrong <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> 10;</pre>
+      </div>
+    </details>`;
+  document.getElementById('history-content').innerHTML = html;
+}
+
+// ─── SQL Console ──────────────────────────────────────────────────────────────
+function setSQL(q) { document.getElementById('sql-input').value=q; }
+function runSQL() {
+  const q=document.getElementById('sql-input').value.trim();
+  if(!q)return;
+  const out=document.getElementById('sql-result');
+  try {
+    const res=db.exec(q);
+    const isSelect=/^\s*(SELECT|WITH)/i.test(q);
+    if(isSelect){
+      if(!res.length){out.innerHTML='<span style="font-size:12px;color:var(--text-muted)">Нет результатов</span>';return}
+      let html=`<table class="sql-result-table glass"><thead><tr>`;
+      res[0].columns.forEach(c=>html+=`<th>${c}</th>`);
+      html+=`</tr></thead><tbody>`;
+      res[0].values.slice(0,50).forEach(row=>html+=`<tr>${row.map(v=>`<td>${v??'NULL'}</td>`).join('')}</tr>`);
+      if(res[0].values.length>50) html+=`<tr><td colspan="${res[0].columns.length}" style="color:var(--text-muted);text-align:center">…ещё ${res[0].values.length-50} строк</td></tr>`;
+      html+=`</tbody></table>`;
+      out.innerHTML=html;
+    } else {
+      saveDB(); syncFromDB(); updateStats(); renderBrowse();
+      out.innerHTML='<span style="font-size:12px;color:var(--sage)">✓ Выполнено успешно</span>';
+    }
+  } catch(e) {
+    out.innerHTML=`<span style="font-size:12px;color:var(--amber)">Ошибка: ${e.message}</span>`;
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function esc(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+document.getElementById('inp-char').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-pin').focus()});
+document.getElementById('inp-pin').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-trans').focus()});
+document.getElementById('inp-trans').addEventListener('keydown',e=>{if(e.key==='Enter')addCard()});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+initDB();
+</script>
