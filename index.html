@@ -1613,22 +1613,31 @@ function importFromJson(event) {
     try {
       const data = JSON.parse(e.target.result);
 
+      let skipped = 0;
       data.forEach(item => {
-        db.run(
-          `INSERT INTO cards (char, pinyin, trans) VALUES (?, ?, ?)`,
-          [item.char, item.pinyin, item.trans]
-        );
+        try {
+          db.run(
+            `INSERT OR IGNORE INTO cards (char, pinyin, trans) VALUES (?, ?, ?)`,
+            [item.char, item.pinyin, item.trans]
+          );
+          // Считаем пропущенные дубликаты
+          if (db.getRowsModified() === 0) skipped++;
+        } catch(e) {}
       });
 
       saveDB();
+      syncFromDB();   // ← обновить массив cards
       renderBrowse();
       updateStats();
 
-      alert("Данные успешно импортированы!");
+      const imported = data.length - skipped;
+      alert(`Импортировано: ${imported} карточек${skipped ? `, пропущено дубликатов: ${skipped}` : ''}`);
     } catch (err) {
       alert("Ошибка при чтении файла: " + err.message);
     }
   };
+
+  reader.readAsText(file); // ← вот этой строки не хватало!
 }
 
 // ─── SQL Console ──────────────────────────────────────────────────────────────
